@@ -1,40 +1,53 @@
 import Data.Numbers.Primes
 import Control.DeepSeq
 import Data.List
+import Data.Time
 
 -- really fast proper divisers
-properDivisors'' n' = properDivisors n' primes
-    where   properDivisors :: Int -> [Int] -> [Int]
-            properDivisors 1 (p:ps) = [1]
-            properDivisors n (p:ps) | p >= n' = [1]
-                                    | n `rem` p == 0 = properDivisors' n 1 (p:ps)
-                                    | otherwise = properDivisors n ps
-                where properDivisors' n n' (p:ps) | n `rem` p == 0 = (n' * p) : (properDivisors' (n `div` p) (n' * p) (p:ps))
-                                                  | otherwise = properDivisors n ps
 
-properDivisors' :: Int -> [Int]
-properDivisors' n = [x | x <- [1..(sqrt $ fromIntegral n)], n `rem` x == 0]
-
-properDivisorsSum :: Int -> [Int] -> Int
-properDivisorsSum 1 (p:ps) = 1
-properDivisorsSum n (p:ps) | n `rem` p == 0 = properDivisors' n 1 (p:ps)
-                           | otherwise = properDivisorsSum n ps
-    where properDivisors' n n' (p:ps) | n `rem` p == 0 = (n' * p) + (properDivisors' (n `div` p) (n' * p) (p:ps))
-                                      | otherwise = properDivisorsSum n ps
+unique' [] = []
+unique' [a] = [a]
+unique' (a:b:bs) = if a == b
+                    then unique' (b:bs)
+                    else a : unique' (b:bs)
 
 
+properDivisors n = properDivisors' n (floor $ sqrt $ fromIntegral n)
+    where  properDivisors' n 0 = []
+           properDivisors' n 1 = [1]
+           properDivisors' n a = if n `rem` a == 0
+                                    then if a /= n `div` a
+                                        then a : (n `div` a) : properDivisors' n (a - 1)
+                                        else a : properDivisors' n (a - 1)
+                                    else properDivisors' n (a - 1)
+
+lPrimes' (x:xs) = x : lPrimes' [n | n <- xs, n `mod` x /= 0]
+lPrimes = lPrimes' [2..]
 
 
-isAbundant n = (properDivisorsSum n primes) > n
+properDivisorsSum n = sum $ properDivisors n
+
+isAbundant n = (properDivisorsSum n) > n
 abundantNumbers = filter isAbundant [1..]
 
-sumsOfAbundantPairsLessThan n = bldr abundantSet abundantSet
-    where abundantSet = takeWhile (<=(ceiling $ n / 2)) abundantNumbers
+abundantPairsLessThan n = takeWhile (<=n) (unique' $ sort $ bldr abundantSet abundantSet)
+    where abundantSet = takeWhile (<=n) abundantNumbers
           bldr [] [] = []
           bldr [_] [] = []
-          bldr (a:a':as) [] = bldr (a':as) (as)
+          bldr (a:a':as) [] = bldr (a':as) (a':as)
           bldr (a:as) (b:bs) = a + b : (bldr (a:as) bs)
 
 main = do
-    print $ sort $ properDivisors'' 24 
-    print $ sort $ properDivisors' 24
+  start <- getCurrentTime
+  print $ take 1000 lPrimes
+  end <- getCurrentTime
+  print $ take 1000 primes 
+  end2 <- getCurrentTime
+
+  print $ diffUTCTime end start
+  print $ diffUTCTime end2 end
+
+  let bound = 28123
+  let sumsOfAbundants = sum $ abundantPairsLessThan bound
+  let sumsOfIntegers = bound * (bound + 1) `div` 2
+  print $ sumsOfIntegers - sumsOfAbundants
